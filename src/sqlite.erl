@@ -15,6 +15,10 @@
 -export([stop/1, close/1]).
 -export([sql_exec/2]).
 
+-export([create_table/3]).
+-export([list_tables/1, table_info/2]).
+-export([create_table_sql/2]).
+
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
@@ -54,6 +58,16 @@ stop(Db) ->
 sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
 
+create_table(Db, Tbl, Options) ->
+    gen_server:call(Db, {create_table, Tbl, Options}).
+
+% returns list or ok
+list_tables(Db) ->
+    gen_server:call(Db, list_tables).
+
+table_info(Db, Tbl) ->
+    gen_server:call(Db, {table_info, Tbl}).
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -83,17 +97,22 @@ handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
 handle_call({sql_exec, SQL}, _From, #state{port = Port} = State) ->
-    port_command(Port, term_to_binary({sql_exec, SQL})),
-    Reply = receive 
-		{Port, {data, Data}} when is_binary(Data) ->
-		    List = binary_to_term(Data),
-		    if is_list(List) ->
-			    lists:reverse(List);
-		       true -> List
-		    end;
-		_ ->
-		    ok
-	    end,
+    Reply = exec(Port, {sql_exec, SQL}),
+    {reply, Reply, State};
+handle_call(list_tables, _From, #state{port = Port} = State) ->
+    Reply = exec(Port, {list_tables, none}),
+    {reply, Reply, State};
+handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
+    % make sure we only get table info
+    SQL = io_lib:format("select sql from sqlite_master where tbl_name = '~p' and type='table';", [Tbl]),
+    Cmd = {sql_exec, SQL},
+    [{Info}] = exec(Port, Cmd),
+    Reply = parse_table_info(Info),
+    {reply, Reply, State};
+handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
+    SQL = create_table_sql(Tbl, Options),
+    Cmd = {sql_exec, SQL},
+    Reply = exec(Port, Cmd),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -145,4 +164,58 @@ code_change(_OldVsn, State, _Extra) ->
 create_cmd(Dbase) ->
     "sqlite_port " ++ Dbase.
 
+exec(Port, Cmd) ->
+    port_command(Port, term_to_binary(Cmd)),
+    receive 
+	{Port, {data, Data}} when is_binary(Data) ->
+	    List = binary_to_term(Data),
+	    if is_list(List) ->
+		    lists:reverse(List);
+	       true -> List
+	    end;
+	_ ->
+	    ok
+    end.
 
+
+parse_table_info(Info) ->
+    [_, Tail] = string:tokens(Info, "()"),
+    Cols = string:tokens(Tail, ","), 
+    build_table_info(lists:map(fun(X) ->
+				       string:tokens(X, " ") 
+			       end, Cols), []).
+   
+build_table_info([], Acc) -> 
+    lists:reverse(Acc);
+build_table_info([[ColName, ColType] | Tl], Acc) -> 
+    build_table_info(Tl, [{list_to_atom(ColName), col_type(ColType)}| Acc]); 
+build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
+    build_table_info(Tl, [{list_to_atom(ColName), col_type(ColType)}| Acc]).
+    
+create_table_sql(Tbl, [{Name, Type} | Tl]) ->
+    CT = io_lib:format("CREATE TABLE ~p ", [Tbl]),
+    Start = io_lib:format("(~p ~s PRIMARY KEY, ", [Name, col_type(Type)]),
+    End = string:join(
+	    lists:map(fun({Name0, Type0}) ->
+			      io_lib:format("~p ~s", [Name0, col_type(Type0)])
+		      end, Tl), ", ") ++ ");",
+    lists:flatten(CT ++ Start ++ End).
+     
+col_type("INTEGER") ->
+    integer;
+col_type("TEXT") ->
+    text;
+col_type("double") ->
+    double;
+col_type("DOUBLE") ->
+    double;
+col_type("DATE") ->
+    date;
+col_type(integer) ->
+    "INTEGER";
+col_type(text) ->
+    "TEXT";
+col_type(double) ->
+    "DOUBLE";
+col_type(date) ->
+    "DATE".

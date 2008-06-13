@@ -7,24 +7,40 @@
 #include "erl_interface.h"
 #include "ei.h"
 
+#define MASTER_QUERY "select * from sqlite_master where type='table';"
+
 static FILE *log;
 
-typedef struct {
-  ETERM *result;
-} Result;
+static ETERM *result;
 
-static Result r;
-
+void respond(ETERM *r);
 void send_error(char *err_msg);
 void send_result();
 void send_ok();
 
-static int callback(void *notUsed, int argc, char **argv, char **azColName) {
+// 4 sql = CREATE TABLE t1 (t1key INTEGER PRIMARY KEY, data TEXT, num double, timeEnter DATE)
+static int list_tables(void *notUsed, int argc, char **argv, char **azColName) 
+{
+  if (result == 0) {
+    result = erl_mk_empty_list();
+  }
+  
+  fprintf(log, "%d %s = %s\n", 2, azColName[2], argv[2]);
+  fprintf(log, "\n");
+  fflush(log);
+
+  result = erl_cons(erl_mk_atom(argv[2]), result);
+
+  return 0;
+}
+
+static int callback(void *notUsed, int argc, char **argv, char **azColName) 
+{
   ETERM **record_list;
   int i;
 
-  if (r.result == 0) {
-    r.result = erl_mk_empty_list();
+  if (result == 0) {
+    result = erl_mk_empty_list();
   }
 
   record_list = malloc(argc * sizeof(ETERM *));
@@ -42,7 +58,7 @@ static int callback(void *notUsed, int argc, char **argv, char **azColName) {
   fprintf(log, "\n");
   fflush(log);
 
-  r.result = erl_cons(erl_mk_tuple(record_list, argc), r.result);
+  result = erl_cons(erl_mk_tuple(record_list, argc), result);
 
   free(record_list);
   return 0;
@@ -81,17 +97,39 @@ int main(int argc, char **argv)
 
       sqlite3_close(db);
       break;
-    } else if (strncmp((const char *)ERL_ATOM_PTR(fnp), "sql_exec", 8) == 0) {
+    }
+    else if (strncmp((const char *)ERL_ATOM_PTR(fnp), "list_tables", 11) == 0) {
+      fprintf(log, "calling list_tables\n");
+
+      result = 0;
+
+      rc = sqlite3_exec(db, MASTER_QUERY, list_tables, 0, &zErrMsg);
+      if (rc != SQLITE_OK) {
+	send_error(zErrMsg);
+	sqlite3_free(zErrMsg);
+      }
+      else if (result != 0)  {
+	send_result();
+      }
+      else {
+	// not an error and no results. still need to return something
+	send_ok();
+      } 
+
+      fflush(log);
+
+    }
+    else if (strncmp((const char *)ERL_ATOM_PTR(fnp), "sql_exec", 8) == 0) {
       fprintf(log, "calling sqlite3_exec %s\n", erl_iolist_to_string(argp));
 
-      r.result = 0;
+      result = 0;
 
       rc = sqlite3_exec(db, erl_iolist_to_string(argp), callback, 0, &zErrMsg);
       if (rc != SQLITE_OK) {
 	send_error(zErrMsg);
 	sqlite3_free(zErrMsg);
       }
-      else if (r.result != 0)  {
+      else if (result != 0)  {
 	send_result();
       }
       else {
@@ -112,53 +150,49 @@ int main(int argc, char **argv)
   return 0;
 }
       
-void send_error(char *err_msg) {
-  ETERM **tup_list;
-  ETERM *result;
-  byte buf[1024];
-
-  tup_list = malloc(sizeof(ETERM *) * 2);
+void send_error(char *err_msg) 
+{
+  ETERM *tup_list[2];
+  ETERM *to_send;
 	
   tup_list[0] = erl_mk_atom("sql_error");
   tup_list[1] = erl_mk_string(err_msg);
-  result = erl_mk_tuple(tup_list, 2);
-
-  bzero(buf, 1024);
-  erl_encode(result, buf);
-  write_cmd(buf, erl_term_len(result));
+  to_send = erl_mk_tuple(tup_list, 2);
 
   fprintf(log, "SQL Error: %s\n", err_msg);
+  respond(to_send);
 
   erl_free_term(tup_list[0]);
   erl_free_term(tup_list[1]);
-  free(tup_list);
+  erl_free_compound(to_send);
+}
+
+void send_result() 
+{
+  fprintf(log, "returning at len %d\n", erl_term_len(result));
+  respond(result);
+	
   erl_free_compound(result);
+  result = 0;
 }
 
-void send_result() {
+void send_ok() 
+{
+  ETERM *to_send;
+
+  to_send = erl_mk_atom("ok");
+  fprintf(log, "returning ok at len %d\n", erl_term_len(to_send));
+  respond(to_send);
+  	
+  erl_free_term(to_send);
+}
+
+void respond(ETERM *r) 
+{
   byte buf[2048];
-
   bzero(buf, 2048);
-  erl_encode(r.result, buf);
-  write_cmd(buf, erl_term_len(r.result));
-	
-  fprintf(log, "returning at len %d\n", erl_term_len(r.result));
-	
-  erl_free_compound(r.result);
-  r.result = 0;
+  erl_encode(r, buf);
+  write_cmd(buf, erl_term_len(r));
+
+  fprintf(log, "sending response back\n");
 }
-
-void send_ok() {
-  ETERM *result;
-  byte buf[48];
-
-  result = erl_mk_atom("ok");
-  bzero(buf, 48);
-  erl_encode(result, buf);
-  write_cmd(buf, erl_term_len(result));
-	
-  fprintf(log, "returning ok at len %d\n", erl_term_len(result));
-	
-  erl_free_term(result);
-}
-
