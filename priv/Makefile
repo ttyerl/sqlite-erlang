@@ -4,11 +4,11 @@ FLAGS=-I$(OTP_DIR)/include -L$(OTP_DIR)/lib
 #GCC=/opt/local/bin/gcc-apple-4.2 
 GCC=/usr/bin/gcc
 
-all: erl_comm.c sqlite_port.c
-	$(GCC) -Wall -o sqlite_port erl_comm.c sqlite_port.c $(FLAGS) $(LIB)
+all: obj
+	$(GCC) -Wall -o sqlite_port $(FLAGS) $(LIB) erl_comm.o sqlite_port.o
 
 obj: erl_comm.c sqlite_port.c
-	$(GCC) -Wall -c $(FLAGS) erl_comm.c sqlite_port.c
+	$(GCC) -Wall -c $(FLAGS) erl_comm.c sqlite_port.c 
 
 clean:
 	- rm -f *.o sqlite_port
