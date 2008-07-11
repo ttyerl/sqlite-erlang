@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
 %%% File    : sqlite.erl
-%%% Author  : Tee Teoh <tteoh@tee-teohs-macbook.local>
+%%% Author  : Tee Teoh
 %%% Description : 
 %%%
-%%% Created : 31 May 2008 by Tee Teoh <tteoh@tee-teohs-macbook.local>
+%%% Created : 31 May 2008 by Tee Teoh
 %%%-------------------------------------------------------------------
 -module(sqlite).
 
@@ -19,7 +19,7 @@
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3]).
 
--export([write_sql/2, write_col_sql/1, write_value_sql/1]).
+-export([write_sql/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -141,7 +141,7 @@ handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
     {reply, Reply, State};
 handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
-    Reply = ok,
+    Reply = exec(Port, {sql_exec, write_sql(Tbl, Data)}),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -217,58 +217,24 @@ parse_table_info(Info) ->
 build_table_info([], Acc) -> 
     lists:reverse(Acc);
 build_table_info([[ColName, ColType] | Tl], Acc) -> 
-    build_table_info(Tl, [{list_to_atom(ColName), col_type(ColType)}| Acc]); 
+    build_table_info(Tl, [{list_to_atom(ColName), sqlite_lib:col_type(ColType)}| Acc]); 
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
-    build_table_info(Tl, [{list_to_atom(ColName), col_type(ColType)}| Acc]).
+    build_table_info(Tl, [{list_to_atom(ColName), sqlite_lib:col_type(ColType)}| Acc]).
     
 create_table_sql(Tbl, [{Name, Type} | Tl]) ->
     CT = io_lib:format("CREATE TABLE ~p ", [Tbl]),
-    Start = io_lib:format("(~p ~s PRIMARY KEY, ", [Name, col_type(Type)]),
+    Start = io_lib:format("(~p ~s PRIMARY KEY, ", [Name, sqlite_lib:col_type(Type)]),
     End = string:join(
 	    lists:map(fun({Name0, Type0}) ->
-			      io_lib:format("~p ~s", [Name0, col_type(Type0)])
+			      io_lib:format("~p ~s", [Name0, sqlite_lib:col_type(Type0)])
 		      end, Tl), ", ") ++ ");",
     lists:flatten(CT ++ Start ++ End).
 
 % insert into t1 (data,num) values ('This is sample data',3);
 write_sql(Tbl, Data) ->
     {Cols, Values} = lists:unzip(Data),
-    lists:flatten(io_lib:format("INSERT INTO ~p (~s) values (~s);", 
-				[Tbl, write_col_sql(Cols), write_value_sql(Values)])).
+    lists:flatten(
+      io_lib:format("INSERT INTO ~p (~s) values (~s);", 
+		    [Tbl, sqlite_lib:write_col_sql(Cols), sqlite_lib:write_value_sql(Values)])).
 
-% currently only support integer, double/float and strings
-write_value_sql(Values) ->
-    StrValues = lists:map(fun(X) when is_integer(X) ->
-				  integer_to_list(X);
-			     (X) when is_float(X) ->
-				  float_to_list(X);
-			     (X) ->
-				  io_lib:format("'~s'", [X])
-			  end, Values),
-    string:join(StrValues, ",").
 
-write_col_sql(Cols) ->
-    StrCols = lists:map(fun(X) ->
-				atom_to_list(X)
-			end, Cols),
-    string:join(StrCols, ",").
-
-     
-col_type("INTEGER") ->
-    integer;
-col_type("TEXT") ->
-    text;
-col_type("double") ->
-    double;
-col_type("DOUBLE") ->
-    double;
-col_type("DATE") ->
-    date;
-col_type(integer) ->
-    "INTEGER";
-col_type(text) ->
-    "TEXT";
-col_type(double) ->
-    "DOUBLE";
-col_type(date) ->
-    "DATE".
