@@ -18,8 +18,9 @@
 -export([create_table/2, create_table/3]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3]).
-
--export([write_sql/2]).
+-export([read/2, read/3]).
+-export([delete/2, delete/3]).
+-export([drop_table/1, drop_table/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -93,6 +94,25 @@ write(Tbl, Data) ->
 write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
+read(Tbl, Key) ->
+    ?MODULE:read(?MODULE, Tbl, Key).
+
+read(Db, Tbl, Key) ->
+    gen_server:call(Db, {read, Tbl, Key}).
+
+delete(Tbl, Key) ->
+    ?MODULE:delete(?MODULE, Tbl, Key).
+
+delete(Db, Tbl, Key) ->
+    gen_server:call(Db, {delete, Tbl, Key}).
+
+drop_table(Tbl) ->
+    ?MODULE:drop_table(?MODULE, Tbl).
+
+drop_table(Db, Tbl) ->
+    gen_server:call(Db, {drop_table, Tbl}).
+
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -135,13 +155,24 @@ handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     Reply = parse_table_info(Info),
     {reply, Reply, State};
 handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
-    SQL = create_table_sql(Tbl, Options),
+    SQL = sqlite_lib:create_table_sql(Tbl, Options),
     Cmd = {sql_exec, SQL},
     Reply = exec(Port, Cmd),
     {reply, Reply, State};
 handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
-    Reply = exec(Port, {sql_exec, write_sql(Tbl, Data)}),
+    Reply = exec(Port, {sql_exec, sqlite_lib:write_sql(Tbl, Data)}),
+    {reply, Reply, State};
+handle_call({read, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
+    % select * from  Tbl where Key = Value;
+    Reply = exec(Port, {sql_exec, sqlite_lib:read_sql(Tbl, Key, Value)}),
+    {reply, Reply, State};
+handle_call({delete, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
+    % delete from Tbl where Key = Value;
+    Reply = exec(Port, {sql_exec, sqlite_lib:delete_sql(Tbl, Key, Value)}),
+    {reply, Reply, State};
+handle_call({drop_table, Tbl}, _From, #state{port = Port} = State) ->
+    Reply = exec(Port, {sql_exec, sqlite_lib:drop_table(Tbl)}),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -221,20 +252,3 @@ build_table_info([[ColName, ColType] | Tl], Acc) ->
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
     build_table_info(Tl, [{list_to_atom(ColName), sqlite_lib:col_type(ColType)}| Acc]).
     
-create_table_sql(Tbl, [{Name, Type} | Tl]) ->
-    CT = io_lib:format("CREATE TABLE ~p ", [Tbl]),
-    Start = io_lib:format("(~p ~s PRIMARY KEY, ", [Name, sqlite_lib:col_type(Type)]),
-    End = string:join(
-	    lists:map(fun({Name0, Type0}) ->
-			      io_lib:format("~p ~s", [Name0, sqlite_lib:col_type(Type0)])
-		      end, Tl), ", ") ++ ");",
-    lists:flatten(CT ++ Start ++ End).
-
-% insert into t1 (data,num) values ('This is sample data',3);
-write_sql(Tbl, Data) ->
-    {Cols, Values} = lists:unzip(Data),
-    lists:flatten(
-      io_lib:format("INSERT INTO ~p (~s) values (~s);", 
-		    [Tbl, sqlite_lib:write_col_sql(Cols), sqlite_lib:write_value_sql(Values)])).
-
-
