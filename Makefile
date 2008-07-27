@@ -8,7 +8,7 @@ compile:
 
 clean:
 	- rm ebin/*.beam 
-	- rm src/*
+	- rm doc/*
 	find . -name "*~" | xargs rm
 	cd priv && make clean
 
