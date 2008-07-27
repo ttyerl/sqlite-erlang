@@ -1,9 +1,10 @@
 %%%-------------------------------------------------------------------
 %%% File    : sqlite.erl
-%%% Author  : Tee Teoh
-%%% Description : 
-%%%
-%%% Created : 31 May 2008 by Tee Teoh
+%%% @author Tee Teoh
+%%% @copyright 21 Jun 2008 by Tee Teoh 
+%%% @version 1.0.0
+%%% @doc Library module for sqlite
+%%% @end
 %%%-------------------------------------------------------------------
 -module(sqlite).
 
@@ -32,16 +33,35 @@
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% Function: start_link(Db) -> {ok,Pid} | ignore | {error,Error}
-%% Description: Starts the server
+%% @spec start_link(Db) -> {ok,Pid} | ignore | {error,Error}
+%%      Db = atom()
+%% @doc 
+%%   Opens a sqlite dbase creating one if necessary. The dbase must 
+%%   be called Db.db in the current path. start_link/1 can be use 
+%%   with stop/0, sql_exec/1, create_table/2, list_tables/0, 
+%%   table_info/1, write/2, read/2, delete/2 and drop_table/1. 
+%%   There can be only one start_link call per node.
+%%
+%%   To open multiple dbases on the same node use open/1 or open/2.
+%% @end
 %%--------------------------------------------------------------------
 start_link(Db) ->
     ?MODULE:open(?MODULE, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
 %%--------------------------------------------------------------------
-%% Function: start_link(Db, Options) -> {ok,Pid} | ignore | {error,Error}
-%% Description: Starts the server. 
-%%               {db, DbFile :: String()}
+%% @spec start_link(Db, Options) -> {ok,Pid} | ignore | {error,Error}
+%%      Db = atom()
+%% @doc 
+%%   Opens a sqlite dbase creating one if necessary. By default the 
+%%   dbase will be called Db.db in the current path. This can be changed 
+%%   by passing the option {db, DbFile :: String()}. DbFile must be the 
+%%   full path to the sqlite db file. start_link/1 can be use with stop/0, 
+%%   sql_exec/1, create_table/2, list_tables/0, table_info/1, write/2, 
+%%   read/2, delete/2 and drop_table/1. There can be only one start_link 
+%%   call per node.
+%%
+%%   To open multiple dbases on the same node use open/1 or open/2. 
+%% @end
 %%--------------------------------------------------------------------
 start_link(Db, Options) ->
     Opts = case proplists:get_value(db, Options) of
@@ -50,65 +70,218 @@ start_link(Db, Options) ->
 	   end,
     ?MODULE:open(?MODULE, Opts).
 
+%%--------------------------------------------------------------------
+%% @spec open(Db :: atom()) -> {ok, Pid::pid()} | ignore | {error, Error}
+%% @doc
+%%   Opens a sqlite dbase creating one if necessary. The dbase must be 
+%%   called Db.db in the current path. Can be use to open multiple sqlite 
+%%   dbases per node. Must be use in conjunction with stop/1, sql_exec/2,
+%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
+%%   and drop_table/2.
+%% @end
+%%--------------------------------------------------------------------
 open(Db) ->
     ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
+%%--------------------------------------------------------------------
+%% @spec open(Db::atom(), Options::[tuple()]) -> {ok, Pid::pid()} | ignore | {error, Error}
+%% @doc
+%%   Opens a sqlite dbase creating one if necessary. By default the dbase 
+%%   will be called Db.db in the current path. This can be changed by 
+%%   passing the option {db, DbFile :: String()}. DbFile must be the full 
+%%   path to the sqlite db file. Can be use to open multiple sqlite dbases 
+%%   per node. Must be use in conjunction with stop/1, sql_exec/2, 
+%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
+%%   and drop_table/2. 
+%% @end
+%%--------------------------------------------------------------------
 open(Db, Options) ->
     gen_server:start_link({local, Db}, ?MODULE, Options, []).
 
-
+%%--------------------------------------------------------------------
+%% @spec close(Db::atom()) -> ok
+%% @doc
+%%   Closes the Db sqlite dbase. 
+%% @end
+%%--------------------------------------------------------------------
 close(Db) ->
     gen_server:call(Db, close).
 
+%%--------------------------------------------------------------------
+%% @spec stop() -> ok
+%% @doc
+%%   Closes the sqlite dbase.
+%% @end
+%%--------------------------------------------------------------------
 stop() ->
     ?MODULE:close(?MODULE).
     
+%%--------------------------------------------------------------------
+%% @spec sql_exec(Sql::string()) -> term()
+%% @doc
+%%   Executes the Sql statement directly.
+%% @end
+%%--------------------------------------------------------------------
 sql_exec(SQL) ->
     ?MODULE:sql_exec(?MODULE, SQL).
 
+%%--------------------------------------------------------------------
+%% @spec sql_exec(Db::atom(), Sql::string()) -> term()
+%% @doc
+%%   Executes the Sql statement directly on the Db dbase. Returns the 
+%%   result of the Sql call.
+%% @end
+%%--------------------------------------------------------------------
 sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
 
+%%--------------------------------------------------------------------
+%% @spec create_table(Tbl::atom(), TblInfo::[tuple()]) -> term()
+%% @doc
+%%   Creates the Tbl table using TblInfo as the table structure. The 
+%%   table structure is a list of {column name, column type} pairs.
+%%   e.g. [{name, text}, {age, integer}]
+%%
+%%   Returns the result of the create table call.
+%% @end
+%%--------------------------------------------------------------------
 create_table(Tbl, Options) ->
     ?MODULE:create_table(?MODULE, Tbl, Options).
 
+%%--------------------------------------------------------------------
+%% @spec create_table(Db::atom(), Tbl::atom(), TblInfo::[tuple()]) -> term()
+%% @doc
+%%   Creates the Tbl table in Db using TblInfo as the table structure. 
+%%   The table structure is a list of {column name, column type} pairs. 
+%%   e.g. [{name, text}, {age, integer}]
+%%
+%%   Returns the result of the create table call.
+%% @end
+%%--------------------------------------------------------------------
 create_table(Db, Tbl, Options) ->
     gen_server:call(Db, {create_table, Tbl, Options}).
 
-% returns list or ok
+%%--------------------------------------------------------------------
+%% @spec list_tables() -> [atom()]
+%% @doc
+%%   Returns a list of tables.
+%% @end
+%%--------------------------------------------------------------------
 list_tables() ->
     ?MODULE:list_tables(?MODULE).
 
+%%--------------------------------------------------------------------
+%% @spec list_tables(Db :: atom()) -> [atom()]
+%% @doc
+%%   Returns a list of tables for Db.
+%% @end
+%%--------------------------------------------------------------------
 list_tables(Db) ->
     gen_server:call(Db, list_tables).
 
+%%--------------------------------------------------------------------
+%% @spec table_info(Tbl :: atom()) -> [term()]
+%% @doc
+%%    Returns table schema for Tbl.
+%% @end
+%%--------------------------------------------------------------------
 table_info(Tbl) ->
     ?MODULE:table_info(?MODULE, Tbl).
 
+%%--------------------------------------------------------------------
+%% @spec table_info(Db::atom(), Tbl::atom()) -> [term()]
+%% @doc
+%%   Returns table schema for Tbl in Db.
+%% @end
+%%--------------------------------------------------------------------
 table_info(Db, Tbl) ->
     gen_server:call(Db, {table_info, Tbl}).
 
+%%--------------------------------------------------------------------
+%% @spec write(Tbl::atom(), Data) -> term()
+%%         Data = [{ColName::atom(), ColData::term()}]
+%% @doc
+%%   Write Data into Tbl table. ColData must be of the same type as 
+%%   determined from table_info/2.
+%% @end
+%%--------------------------------------------------------------------
 write(Tbl, Data) ->
     ?MODULE:write(?MODULE, Tbl, Data).
 
+%%--------------------------------------------------------------------
+%% @spec write(Db::atom(), Tbl::atom(), Data) -> term()
+%%         Data = [{ColName::atom(), ColData::term()}]
+%% @doc
+%%   Write Data into Tbl table in Db dbase. ColData must be of the 
+%%   same type as determined from table_info/3.
+%% @end
+%%--------------------------------------------------------------------
 write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
+%%--------------------------------------------------------------------
+%% @spec read(Tbl::atom(), Key) -> [term()]
+%%         Key = {ColName::atom(), ColValue::term()}
+%% @doc
+%%   Reads a row from Tbl table such that the ColValue matches the 
+%%   value in ColName. Returns only the first match. ColValue must 
+%%   have the same type as determined from table_info/2.
+%% @end
+%%--------------------------------------------------------------------
 read(Tbl, Key) ->
     ?MODULE:read(?MODULE, Tbl, Key).
 
+%%--------------------------------------------------------------------
+%% @spec read(Db::atom(), Tbl::atom(), Key) -> [term()]
+%%         Key = {ColName::atom(), ColValue::term()}
+%% @doc
+%%   Reads a row from Tbl table in Db dbase such that the ColValue 
+%%   matches the value in ColName. Returns only the first match. 
+%%   ColValue must have the same type as determined from table_info/3.
+%% @end
+%%--------------------------------------------------------------------
 read(Db, Tbl, Key) ->
     gen_server:call(Db, {read, Tbl, Key}).
 
+%%--------------------------------------------------------------------
+%% @spec delete(Tbl::atom(), Key) -> term()
+%%         Key = {ColName::atom(), ColValue::term()}
+%% @doc
+%%   Delete a row from Tbl table such that the ColValue 
+%%   matches the value in ColName. Removes only the first match. 
+%%   ColValue must have the same type as determined from table_info/3.
+%% @end
+%%--------------------------------------------------------------------
 delete(Tbl, Key) ->
     ?MODULE:delete(?MODULE, Tbl, Key).
 
+%%--------------------------------------------------------------------
+%% @spec delete(Db::atom(), Tbl::atom(), Key) -> term()
+%%         Key = {ColName::atom(), ColValue::term()}
+%% @doc
+%%   Delete a row from Tbl table in Db dbase such that the ColValue 
+%%   matches the value in ColName. Removes only the first match. 
+%%   ColValue must have the same type as determined from table_info/3.
+%% @end
+%%--------------------------------------------------------------------
 delete(Db, Tbl, Key) ->
     gen_server:call(Db, {delete, Tbl, Key}).
 
+%%--------------------------------------------------------------------
+%% @spec drop_table(Tbl::atom()) -> term()
+%% @doc
+%%   Drop the table Tbl.
+%% @end
+%%--------------------------------------------------------------------
 drop_table(Tbl) ->
     ?MODULE:drop_table(?MODULE, Tbl).
 
+%%--------------------------------------------------------------------
+%% @spec drop_table(Db::atom(), Tbl::atom()) -> term()
+%% @doc
+%%   Drop the table Tbl from Db dbase.
+%% @end
+%%--------------------------------------------------------------------
 drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
@@ -118,11 +291,13 @@ drop_table(Db, Tbl) ->
 %%====================================================================
 
 %%--------------------------------------------------------------------
-%% Function: init(Args) -> {ok, State} |
+%% @spec init(Args) -> {ok, State} |
 %%                         {ok, State, Timeout} |
 %%                         ignore               |
 %%                         {stop, Reason}
-%% Description: Initiates the server
+%% @doc Initiates the server
+%% @end
+%% @hidden
 %%--------------------------------------------------------------------
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
@@ -130,13 +305,15 @@ init(Options) ->
     {ok, #state{port = Port, ops = Options}}.
 		     
 %%--------------------------------------------------------------------
-%% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
+%% @spec %% handle_call(Request, From, State) -> {reply, Reply, State} |
 %%                                      {reply, Reply, State, Timeout} |
 %%                                      {noreply, State} |
 %%                                      {noreply, State, Timeout} |
 %%                                      {stop, Reason, Reply, State} |
 %%                                      {stop, Reason, State}
-%% Description: Handling call messages
+%% @doc Handling call messages
+%% @end
+%% @hidden
 %%--------------------------------------------------------------------
 handle_call(close, _From, State) ->
     Reply = ok,
@@ -179,29 +356,35 @@ handle_call(_Request, _From, State) ->
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
-%% Function: handle_cast(Msg, State) -> {noreply, State} |
+%% @spec handle_cast(Msg, State) -> {noreply, State} |
 %%                                      {noreply, State, Timeout} |
 %%                                      {stop, Reason, State}
-%% Description: Handling cast messages
+%% @doc Handling cast messages
+%% @end
+%% @hidden
 %%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %%--------------------------------------------------------------------
-%% Function: handle_info(Info, State) -> {noreply, State} |
+%% @spec handle_info(Info, State) -> {noreply, State} |
 %%                                       {noreply, State, Timeout} |
 %%                                       {stop, Reason, State}
-%% Description: Handling all non call/cast messages
+%% @doc Handling all non call/cast messages
+%% @end
+%% @hidden
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
     {noreply, State}.
 
 %%--------------------------------------------------------------------
-%% Function: terminate(Reason, State) -> void()
-%% Description: This function is called by a gen_server when it is about to
+%% @spec terminate(Reason, State) -> void()
+%% @doc This function is called by a gen_server when it is about to
 %% terminate. It should be the opposite of Module:init/1 and do any necessary
 %% cleaning up. When it returns, the gen_server terminates with Reason.
 %% The return value is ignored.
+%% @end
+%% @hidden
 %%--------------------------------------------------------------------
 terminate(normal, #state{port = Port}) ->
     port_command(Port, term_to_binary({close, nop})),
@@ -212,7 +395,9 @@ terminate(_Reason, _State) ->
 
 %%--------------------------------------------------------------------
 %% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
-%% Description: Convert process state when code is changed
+%% @doc Convert process state when code is changed
+%% @end
+%% @hidden
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.

@@ -1,9 +1,10 @@
 %%%-------------------------------------------------------------------
 %%% File    : sqlite_lib.erl
-%%% Author  : Tee Teoh 
-%%% Description : 
-%%%
-%%% Created : 21 Jun 2008 by Tee Teoh 
+%%% @author Tee Teoh
+%%% @copyright 21 Jun 2008 by Tee Teoh 
+%%% @version 1.0.0
+%%% @doc Library module for sqlite
+%%% @end
 %%%-------------------------------------------------------------------
 -module(sqlite_lib).
 
@@ -65,9 +66,9 @@ write_col_sql(Cols) ->
 
 %%--------------------------------------------------------------------
 %% @spec create_table_sql(Tbl, [{ColName, Type}]) -> string()
-%%       Tbl :: atom()
-%%       ColName :: atom()
-%%       Type :: string()
+%%       Tbl = atom()
+%%       ColName = atom()
+%%       Type = string()
 %% @doc Generates a table create stmt in SQL.
 %%--------------------------------------------------------------------
 create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
@@ -81,8 +82,8 @@ create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
 
 %%--------------------------------------------------------------------
 %% @spec write_sql(Tbl, Data) -> string()
-%%       Tbl :: atom()
-%%       Data :: [{ColName :: atom(), Values :: string() || integer() || float()}]
+%%       Tbl = atom()
+%%       Data = [{ColName :: atom(), Values :: string() | integer() | float()}]
 %% @doc Taking Data as list of column names and values pairs it creates the
 %%      proper insertion SQL stmt.
 %% @end
@@ -97,9 +98,9 @@ write_sql(Tbl, Data) ->
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl, Key, Value) -> string()
-%%       Tbl :: atom()
-%%       Key :: atom()
-%%       Value :: string() || integer() || float()
+%%       Tbl = atom()
+%%       Key = atom()
+%%       Value = string() | integer() | float()
 %% @doc Using Key as the column name searches for the record with
 %%      matching Value.
 %% @end
@@ -110,9 +111,9 @@ read_sql(Tbl, Key, Value) ->
 
 %%--------------------------------------------------------------------
 %% @spec delete_sql(Tbl, Key, Value) -> string()
-%%       Tbl :: atom()
-%%       Key :: atom()
-%%       Value :: string() || integer() || float()
+%%       Tbl = atom()
+%%       Key = atom()
+%%       Value = string() | integer() | float()
 %% @doc Using Key as the column name searches for the record with
 %%      matching Value then deletes that record.
 %% @end
@@ -123,7 +124,7 @@ delete_sql(Tbl, Key, Value) ->
 
 %%--------------------------------------------------------------------
 %% @spec drop_table(Tbl) -> string()
-%%       Tbl :: atom()
+%%       Tbl = atom()
 %% @doc Drop the table Tbl from the database
 %% @end
 %%--------------------------------------------------------------------
