@@ -305,7 +305,7 @@ init(Options) ->
     {ok, #state{port = Port, ops = Options}}.
 		     
 %%--------------------------------------------------------------------
-%% @spec %% handle_call(Request, From, State) -> {reply, Reply, State} |
+%% @spec handle_call(Request, From, State) -> {reply, Reply, State} |
 %%                                      {reply, Reply, State, Timeout} |
 %%                                      {noreply, State} |
 %%                                      {noreply, State, Timeout} |
