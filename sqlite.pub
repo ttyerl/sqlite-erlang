@@ -1,0 +1,9 @@
+{author, {"Tee Teoh", "tty.erlang@gmail.com", {2008,6,8}}}.
+{packager, {"Tee Teoh", "tty.erlang@gmail.com"}}.
+{category, ["database","driver"]}.
+{name, "sqlite"}.
+{vsn, "1.0.0"}.
+{depends, ["kernel","proplists","lists","string","stdlib"]}.
+{keywords, ["database","sqlite","driver"]}.
+{summary, "sqlite driver"}.
+{abstract, "Manages a sqlite database."}.
