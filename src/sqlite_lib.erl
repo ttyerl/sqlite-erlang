@@ -20,6 +20,7 @@
 %% @spec col_type(Type :: term()) -> term()
 %% @doc Maps sqlite column type.
 %%--------------------------------------------------------------------
+-spec(col_type/1::(atom() | string()) -> atom() | string()).
 col_type(integer) ->
     "INTEGER";     
 col_type("INTEGER") ->
@@ -44,6 +45,7 @@ col_type("DATE") ->
 %%    Currently only support integer, double/float and strings.
 %% @end
 %%--------------------------------------------------------------------
+-spec(write_value_sql/1::(any()) -> string()).
 write_value_sql(Values) ->
     StrValues = lists:map(fun(X) when is_integer(X) ->
 				  integer_to_list(X);
@@ -58,6 +60,7 @@ write_value_sql(Values) ->
 %% @spec write_col_sql([atom()]) -> string()
 %% @doc Creates the column/data stmt for SQL.
 %%--------------------------------------------------------------------
+-spec(write_col_sql/1::([atom()]) -> string()).
 write_col_sql(Cols) ->
     StrCols = lists:map(fun(X) ->
 				atom_to_list(X)
@@ -71,6 +74,7 @@ write_col_sql(Cols) ->
 %%       Type = string()
 %% @doc Generates a table create stmt in SQL.
 %%--------------------------------------------------------------------
+-spec(create_table_sql/2::(atom(), [{atom(), string()}]) -> string()).
 create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
     CT = io_lib:format("CREATE TABLE ~p ", [Tbl]),
     Start = io_lib:format("(~p ~s PRIMARY KEY, ", [ColName, sqlite_lib:col_type(Type)]),
@@ -88,6 +92,8 @@ create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
 %%      proper insertion SQL stmt.
 %% @end
 %%--------------------------------------------------------------------
+-type(sql_value() :: string() | integer() | float()).
+-spec(write_sql/2::(atom(), [{atom(), sql_value()}]) -> string()).
 write_sql(Tbl, Data) ->
     {Cols, Values} = lists:unzip(Data),
     lists:flatten(
@@ -105,6 +111,7 @@ write_sql(Tbl, Data) ->
 %%      matching Value.
 %% @end
 %%--------------------------------------------------------------------
+-spec(read_sql/3::(atom(), atom(), sql_value()) -> string()).
 read_sql(Tbl, Key, Value) ->
     lists:flatten(
       io_lib:format("SELECT * FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value])).
@@ -118,6 +125,7 @@ read_sql(Tbl, Key, Value) ->
 %%      matching Value then deletes that record.
 %% @end
 %%--------------------------------------------------------------------
+-spec(delete_sql/3::(atom(), atom(), sql_value()) -> string()).
 delete_sql(Tbl, Key, Value) ->
     lists:flatten(
       io_lib:format("DELETE FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value])).
@@ -128,6 +136,7 @@ delete_sql(Tbl, Key, Value) ->
 %% @doc Drop the table Tbl from the database
 %% @end
 %%--------------------------------------------------------------------
+-spec(drop_table/1::(atom()) -> string()).
 drop_table(Tbl) ->
     lists:flatten(
       io_lib:format("DROP TABLE ~p;", [Tbl])).

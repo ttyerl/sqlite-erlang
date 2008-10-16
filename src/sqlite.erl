@@ -45,6 +45,9 @@
 %%   To open multiple dbases on the same node use open/1 or open/2.
 %% @end
 %%--------------------------------------------------------------------
+-type(result() :: {'ok', pid()} | 'ignore' | {'error', any()}).
+-spec(start_link/1::(atom()) -> result()).
+
 start_link(Db) ->
     ?MODULE:open(?MODULE, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
@@ -63,6 +66,7 @@ start_link(Db) ->
 %%   To open multiple dbases on the same node use open/1 or open/2. 
 %% @end
 %%--------------------------------------------------------------------
+-spec(start_link/2::(atom(), [{atom(), any()}]) -> result()).
 start_link(Db, Options) ->
     Opts = case proplists:get_value(db, Options) of
 	       undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
@@ -80,6 +84,7 @@ start_link(Db, Options) ->
 %%   and drop_table/2.
 %% @end
 %%--------------------------------------------------------------------
+-spec(open/1::(atom()) -> result()).
 open(Db) ->
     ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
@@ -95,6 +100,7 @@ open(Db) ->
 %%   and drop_table/2. 
 %% @end
 %%--------------------------------------------------------------------
+-spec(open/2::(atom(), [{atom(), any()}]) -> result()).
 open(Db, Options) ->
     gen_server:start_link({local, Db}, ?MODULE, Options, []).
 
@@ -104,6 +110,7 @@ open(Db, Options) ->
 %%   Closes the Db sqlite dbase. 
 %% @end
 %%--------------------------------------------------------------------
+-spec(close/1::(atom()) -> 'ok').
 close(Db) ->
     gen_server:call(Db, close).
 
@@ -113,6 +120,7 @@ close(Db) ->
 %%   Closes the sqlite dbase.
 %% @end
 %%--------------------------------------------------------------------
+-spec(stop/0::() -> 'ok').
 stop() ->
     ?MODULE:close(?MODULE).
     
@@ -122,6 +130,7 @@ stop() ->
 %%   Executes the Sql statement directly.
 %% @end
 %%--------------------------------------------------------------------
+-spec(sql_exec/1::(string()) -> any()).
 sql_exec(SQL) ->
     ?MODULE:sql_exec(?MODULE, SQL).
 
@@ -132,6 +141,7 @@ sql_exec(SQL) ->
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
+-spec(sql_exec/2::(atom(), string()) -> any()).
 sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
 
@@ -145,6 +155,7 @@ sql_exec(Db, SQL) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
+-spec(create_table/2::(atom(), [tuple()]) -> any()).
 create_table(Tbl, Options) ->
     ?MODULE:create_table(?MODULE, Tbl, Options).
 
@@ -158,6 +169,7 @@ create_table(Tbl, Options) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
+-spec(create_table/3::(atom(), atom(), [{atom(), any()}]) -> any()).
 create_table(Db, Tbl, Options) ->
     gen_server:call(Db, {create_table, Tbl, Options}).
 
@@ -167,6 +179,7 @@ create_table(Db, Tbl, Options) ->
 %%   Returns a list of tables.
 %% @end
 %%--------------------------------------------------------------------
+-spec(list_tables/0::() -> [atom()]).
 list_tables() ->
     ?MODULE:list_tables(?MODULE).
 
@@ -176,6 +189,7 @@ list_tables() ->
 %%   Returns a list of tables for Db.
 %% @end
 %%--------------------------------------------------------------------
+-spec(list_tables/1::(atom()) -> [atom()]).
 list_tables(Db) ->
     gen_server:call(Db, list_tables).
 
@@ -185,6 +199,7 @@ list_tables(Db) ->
 %%    Returns table schema for Tbl.
 %% @end
 %%--------------------------------------------------------------------
+-spec(table_info/1::(atom()) -> [any()]).
 table_info(Tbl) ->
     ?MODULE:table_info(?MODULE, Tbl).
 
@@ -194,6 +209,7 @@ table_info(Tbl) ->
 %%   Returns table schema for Tbl in Db.
 %% @end
 %%--------------------------------------------------------------------
+-spec(table_info/2::(atom(), atom()) -> [any()]).
 table_info(Db, Tbl) ->
     gen_server:call(Db, {table_info, Tbl}).
 
@@ -205,6 +221,7 @@ table_info(Db, Tbl) ->
 %%   determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
+-spec(write/2::(atom(), [{atom(), any()}]) -> any()).
 write(Tbl, Data) ->
     ?MODULE:write(?MODULE, Tbl, Data).
 
@@ -216,6 +233,7 @@ write(Tbl, Data) ->
 %%   same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
+-spec(write/3::(atom(), atom(), [{atom(), any()}]) -> any()).
 write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
@@ -228,6 +246,7 @@ write(Db, Tbl, Data) ->
 %%   have the same type as determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
+-spec(read/2::(atom(), {atom(), any()}) -> any()).
 read(Tbl, Key) ->
     ?MODULE:read(?MODULE, Tbl, Key).
 
@@ -240,6 +259,7 @@ read(Tbl, Key) ->
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
+-spec(read/3::(atom(), atom(), {atom(), any()}) -> any()).
 read(Db, Tbl, Key) ->
     gen_server:call(Db, {read, Tbl, Key}).
 
@@ -252,6 +272,7 @@ read(Db, Tbl, Key) ->
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
+-spec(delete/2::(atom(), {atom(), any()}) -> any()).
 delete(Tbl, Key) ->
     ?MODULE:delete(?MODULE, Tbl, Key).
 
@@ -264,6 +285,7 @@ delete(Tbl, Key) ->
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
+-spec(delete/3::(atom(), atom(), {atom(), any()}) -> any()).
 delete(Db, Tbl, Key) ->
     gen_server:call(Db, {delete, Tbl, Key}).
 
@@ -273,6 +295,7 @@ delete(Db, Tbl, Key) ->
 %%   Drop the table Tbl.
 %% @end
 %%--------------------------------------------------------------------
+-spec(drop_table/1::(atom()) -> any()).
 drop_table(Tbl) ->
     ?MODULE:drop_table(?MODULE, Tbl).
 
@@ -282,6 +305,7 @@ drop_table(Tbl) ->
 %%   Drop the table Tbl from Db dbase.
 %% @end
 %%--------------------------------------------------------------------
+-spec(drop_table/2::(atom(), atom()) -> any()).
 drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
@@ -299,6 +323,8 @@ drop_table(Db, Tbl) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
+-type(init_return() :: {'ok', tuple()} | {'ok', tuple(), integer()} | 'ignore' | {'stop', any()}).
+-spec(init/1::([any()]) -> init_return()).
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
     Port = open_port({spawn, create_cmd(Dbase)}, [{packet, 2}, binary]),
@@ -315,6 +341,10 @@ init(Options) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
+-type(handle_call_return() :: {reply, any(), tuple()} | {reply, any(), tuple(), integer()} |
+      {noreply, tuple()} | {noreply, tuple(), integer()} |
+      {stop, any(), any(), tuple()} | {stop, any(), tuple()}).
+-spec(handle_call/3::(any(), pid(), tuple()) -> handle_call_return()).
 handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
@@ -363,6 +393,9 @@ handle_call(_Request, _From, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
+-type(handle_cast_return() :: {noreply, tuple()} | {noreply, tuple(), integer()} |
+      {stop, any(), tuple()}).
+-spec(handle_cast/2::(any(), tuple()) -> handle_cast_return()).
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -374,6 +407,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
+-spec(handle_info/2::(any(), tuple()) -> handle_cast_return()).
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -386,6 +420,7 @@ handle_info(_Info, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
+-spec(terminate/2::(atom(), tuple()) -> atom()).
 terminate(normal, #state{port = Port}) ->
     port_command(Port, term_to_binary({close, nop})),
     port_close(Port),
