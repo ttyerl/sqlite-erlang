@@ -14,6 +14,7 @@ static:
 clean:
 	- rm ebin/*.beam 
 	- rm doc/*
+	- rm -rf ct_nodes* all_runs.html variables*
 	find . -name "*~" | xargs rm
 	cd priv && make clean
 
